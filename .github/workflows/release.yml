@@ -1,0 +1,57 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/raycast/package-lock.json
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Install Raycast dependencies
+        run: npm ci --prefix apps/raycast
+
+      - name: Build embedded Raycast binaries
+        run: make raycast-binaries
+
+      - name: Lint Raycast extension
+        run: npm run lint --prefix apps/raycast
+
+      - name: Build release binaries
+        run: make release-binaries
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/media-converter-macos-intel
+            build/media-converter-macos-apple-silicon
+            build/media-converter-linux-amd64
+            build/media-converter-linux-arm64
+            build/media-converter-windows-amd64.exe
+          generate_release_notes: true
+          fail_on_unmatched_files: true
