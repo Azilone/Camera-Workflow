@@ -189,6 +189,7 @@ func init() {
 	rootCmd.Flags().Int("timeout-photo", 300, "Timeout for photo conversion in seconds")
 	rootCmd.Flags().Int("timeout-video", 1800, "Timeout for video conversion in seconds")
 	rootCmd.Flags().Float64("min-output-ratio", 0.0, "Minimum output size ratio (0.0 uses format-specific defaults)")
+	rootCmd.Flags().Bool("skip-disk-check", false, "Skip destination disk space verification (use with caution)")
 
 	// Bind flags to viper
 	viper.BindPFlag("dry_run", rootCmd.Flags().Lookup("dry-run"))
@@ -208,6 +209,7 @@ func init() {
 	viper.BindPFlag("timeout_photo", rootCmd.Flags().Lookup("timeout-photo"))
 	viper.BindPFlag("timeout_video", rootCmd.Flags().Lookup("timeout-video"))
 	viper.BindPFlag("min_output_size_ratio", rootCmd.Flags().Lookup("min-output-ratio"))
+	viper.BindPFlag("skip_disk_space_check", rootCmd.Flags().Lookup("skip-disk-check"))
 	viper.BindPFlag("adaptive_workers.enabled", rootCmd.Flags().Lookup("adaptive-workers"))
 	viper.BindPFlag("adaptive_workers.min", rootCmd.Flags().Lookup("adaptive-workers-min"))
 	viper.BindPFlag("adaptive_workers.max", rootCmd.Flags().Lookup("adaptive-workers-max"))

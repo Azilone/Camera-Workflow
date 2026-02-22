@@ -133,6 +133,7 @@ In copy-only mode the tool:
 - **Test mode**: `--dry-run` shows what will happen without doing it
 - **Atomic operations**: Files are either perfect or untouched
 - **Auto-recovery**: Cleans up if something goes wrong
+- **Manual override**: `--skip-disk-check` lets you bypass free space validation when remote mounts report 0 GB (use sparingly)
 
 ## Installation Options
 
@@ -154,6 +155,7 @@ go build -o media-converter
 |--------|---------|-------------|
 | `--dry-run` | false | Preview without converting |
 | `--keep-originals` | true | Preserve original files |
+| `--skip-disk-check` | false | Skip destination free space verification (only for exotic mounts like WebDAV) |
 | `--copy-only` | false | Copy-only archive mode with checksum verification |
 | `--verify-checksum` | false | Force checksum verification during conversion |
 | `--jobs` | CPU-1 | Number of parallel jobs |

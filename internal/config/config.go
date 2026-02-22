@@ -36,6 +36,7 @@ type Config struct {
 	Language       string
 
 	// Security
+	SkipDiskSpaceCheck     bool
 	ConversionTimeoutPhoto time.Duration
 	ConversionTimeoutVideo time.Duration
 	MinOutputSizeRatio     float64
@@ -75,6 +76,7 @@ func NewConfig() *Config {
 	viper.SetDefault("video_acceleration", true)
 	viper.SetDefault("organize_by_date", true)
 	viper.SetDefault("keep_originals", true)
+	viper.SetDefault("skip_disk_space_check", false)
 	viper.SetDefault("timeout_photo", 300)
 	viper.SetDefault("timeout_video", 1800)
 	viper.SetDefault("min_output_size_ratio", 0.005)
@@ -104,6 +106,7 @@ func NewConfig() *Config {
 		OrganizeByDate:         viper.GetBool("organize_by_date"),
 		KeepOriginals:          viper.GetBool("keep_originals"),
 		Language:               strings.ToLower(viper.GetString("language")),
+		SkipDiskSpaceCheck:     viper.GetBool("skip_disk_space_check"),
 		ConversionTimeoutPhoto: time.Duration(viper.GetInt("timeout_photo")) * time.Second,
 		ConversionTimeoutVideo: time.Duration(viper.GetInt("timeout_video")) * time.Second,
 		MinOutputSizeRatio:     viper.GetFloat64("min_output_size_ratio"),

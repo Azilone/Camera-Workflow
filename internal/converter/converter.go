@@ -91,11 +91,15 @@ func (c *Converter) runConversion() error {
 		c.logger.Warn(fmt.Sprintf("Recovery issues detected: %v", err))
 	}
 
-	// Check disk space
-	if err := c.security.CheckDiskSpace(c.config.SourceDir, c.config.DestDir); err != nil {
-		return fmt.Errorf("disk space check failed: %w", err)
+	// Check disk space unless explicitly skipped
+	if c.config.SkipDiskSpaceCheck {
+		c.logger.Warn("Skipping disk space verification (flag --skip-disk-check enabled)")
+	} else {
+		if err := c.security.CheckDiskSpace(c.config.SourceDir, c.config.DestDir); err != nil {
+			return fmt.Errorf("disk space check failed: %w", err)
+		}
+		c.logger.Success("Disk space check passed")
 	}
-	c.logger.Success("Disk space check passed")
 
 	// Run safety test if not in dry-run mode
 	if !c.config.DryRun {

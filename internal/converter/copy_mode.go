@@ -90,10 +90,14 @@ func (c *Converter) runCopyMode() error {
 		}
 	}
 
-	if err := c.security.CheckDiskSpace(c.config.SourceDir, c.config.DestDir); err != nil {
-		return fmt.Errorf("disk space check failed: %w", err)
+	if c.config.SkipDiskSpaceCheck {
+		c.logger.Warn("Skipping disk space verification (flag --skip-disk-check enabled)")
+	} else {
+		if err := c.security.CheckDiskSpace(c.config.SourceDir, c.config.DestDir); err != nil {
+			return fmt.Errorf("disk space check failed: %w", err)
+		}
+		c.logger.Success("Disk space check passed")
 	}
-	c.logger.Success("Disk space check passed")
 
 	photoFiles, videoFiles, err := c.findFiles()
 	if err != nil {
