@@ -1,6 +1,7 @@
 import {
   Action,
   ActionPanel,
+  environment,
   Form,
   Icon,
   LocalStorage,
@@ -19,8 +20,16 @@ import ConversionRunView, { ConversionFormValues, ConversionPreset, LastRunRecor
 
 const execFileAsync = promisify(execFile);
 const LAST_RUN_STORAGE_KEY = "camera-workflow:last-run";
+const DEV_PATH_FALLBACK_ENV = "CAMERA_WORKFLOW_ALLOW_PATH_FALLBACK";
 
-type DependencyState = { ok: boolean; missing: string[]; found: Record<string, string> };
+type DependencyState = {
+  ok: boolean;
+  missing: string[];
+  found: Record<string, string>;
+  warnings: string[];
+  mediaConverterPath?: string;
+  mediaConverterSource?: "embedded" | "path";
+};
 type DetectedVolume = { name: string; mountPath: string };
 type SubmitValues = Partial<Omit<ConversionFormValues, "source" | "destination">> & {
   sourceFolder?: string[];
@@ -134,6 +143,38 @@ function defaultValues(): ConversionFormValues {
   };
 }
 
+function canUseDevPathFallback(): boolean {
+  return environment.isDevelopment && process.env[DEV_PATH_FALLBACK_ENV] === "1";
+}
+
+function embeddedBinaryName(): string {
+  if (process.platform !== "darwin") {
+    throw new Error(`Unsupported platform "${process.platform}". This extension currently bundles macOS binaries only.`);
+  }
+
+  if (process.arch === "arm64") return "media-converter-darwin-arm64";
+  if (process.arch === "x64") return "media-converter-darwin-amd64";
+
+  throw new Error(`Unsupported CPU architecture "${process.arch}".`);
+}
+
+async function resolveEmbeddedMediaConverterPath(): Promise<string | null> {
+  let binaryName: string;
+  try {
+    binaryName = embeddedBinaryName();
+  } catch {
+    return null;
+  }
+
+  const candidate = path.join(environment.assetsPath, "bin", binaryName);
+  try {
+    await access(candidate, constants.X_OK);
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
 async function buildCandidateDirs(): Promise<string[]> {
   const dirs = new Set<string>();
 
@@ -223,9 +264,10 @@ async function resolveBinaryPath(bin: string): Promise<string | null> {
 }
 
 async function checkDependencies(): Promise<DependencyState> {
-  const bins = ["media-converter", "ffmpeg", "ffprobe", "magick"];
+  const bins = ["ffmpeg", "ffprobe", "magick"];
   const missing: string[] = [];
   const found: Record<string, string> = {};
+  const warnings: string[] = [];
 
   for (const bin of bins) {
     const resolved = await resolveBinaryPath(bin);
@@ -233,7 +275,25 @@ async function checkDependencies(): Promise<DependencyState> {
     else found[bin] = resolved;
   }
 
-  return { ok: missing.length === 0, missing, found };
+  let mediaConverterPath = await resolveEmbeddedMediaConverterPath();
+  let mediaConverterSource: DependencyState["mediaConverterSource"];
+
+  if (mediaConverterPath) {
+    mediaConverterSource = "embedded";
+  } else if (canUseDevPathFallback()) {
+    const fallbackPath = await resolveBinaryPath("media-converter");
+    if (fallbackPath) {
+      mediaConverterPath = fallbackPath;
+      mediaConverterSource = "path";
+      warnings.push("Using PATH fallback for media-converter in development mode.");
+    }
+  }
+
+  if (!mediaConverterPath) {
+    missing.push("embedded media-converter binary");
+  }
+
+  return { ok: missing.length === 0, missing, found, warnings, mediaConverterPath, mediaConverterSource };
 }
 
 async function detectSourceVolumes(): Promise<DetectedVolume[]> {
@@ -348,6 +408,9 @@ export default function Command() {
       if (deps.data && !deps.data.ok) {
         throw new Error(`Missing dependencies: ${deps.data.missing.join(", ")}`);
       }
+      if (!deps.data?.mediaConverterPath) {
+        throw new Error("Embedded media-converter binary is not available. Rebuild binaries with `make raycast-binaries`.");
+      }
 
       const source = input.sourceFolder?.[0] || input.sourceSuggested?.trim() || "";
       const destination = input.autoDestination
@@ -376,8 +439,9 @@ export default function Command() {
       push(
         <ConversionRunView
           values={values}
-          mediaConverterPath={deps.data?.found["media-converter"]}
+          mediaConverterPath={deps.data.mediaConverterPath}
           runtimePath={runtimePath}
+          allowPathFallback={canUseDevPathFallback()}
           onCompleted={async (record: LastRunRecord) => {
             await LocalStorage.setItem(LAST_RUN_STORAGE_KEY, JSON.stringify(record));
           }}
@@ -394,7 +458,7 @@ export default function Command() {
 
   const setupText = deps.data
     ? deps.data.ok
-      ? "✅ All dependencies detected"
+      ? `✅ Dependencies ready (${deps.data.mediaConverterSource === "embedded" ? "embedded media-converter" : "PATH fallback media-converter"})${deps.data.warnings.length ? ` • ${deps.data.warnings.join(" ")}` : ""}`
       : `⚠️ Missing dependencies: ${deps.data.missing.join(", ")}`
     : "Checking dependencies...";
 

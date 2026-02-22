@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kevindurb/media-converter/internal/api"
-	"github.com/kevindurb/media-converter/internal/checksum"
-	"github.com/kevindurb/media-converter/internal/config"
-	"github.com/kevindurb/media-converter/internal/logger"
-	"github.com/kevindurb/media-converter/internal/security"
-	"github.com/kevindurb/media-converter/internal/utils"
+	"github.com/Azilone/Camera-Workflow/internal/api"
+	"github.com/Azilone/Camera-Workflow/internal/checksum"
+	"github.com/Azilone/Camera-Workflow/internal/config"
+	"github.com/Azilone/Camera-Workflow/internal/logger"
+	"github.com/Azilone/Camera-Workflow/internal/security"
+	"github.com/Azilone/Camera-Workflow/internal/utils"
 )
 
 type Converter struct {

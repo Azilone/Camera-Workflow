@@ -1,4 +1,4 @@
-module github.com/kevindurb/media-converter
+module github.com/Azilone/Camera-Workflow
 
 go 1.21
 

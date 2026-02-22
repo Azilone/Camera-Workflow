@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/kevindurb/media-converter/internal/config"
-	"github.com/kevindurb/media-converter/internal/converter"
-	"github.com/kevindurb/media-converter/internal/logger"
-	"github.com/kevindurb/media-converter/internal/utils"
+	"github.com/Azilone/Camera-Workflow/internal/config"
+	"github.com/Azilone/Camera-Workflow/internal/converter"
+	"github.com/Azilone/Camera-Workflow/internal/logger"
+	"github.com/Azilone/Camera-Workflow/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"

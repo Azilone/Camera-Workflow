@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/kevindurb/media-converter/internal/api"
+	"github.com/Azilone/Camera-Workflow/internal/api"
 	"github.com/sirupsen/logrus"
 )
 

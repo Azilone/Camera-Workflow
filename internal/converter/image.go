@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kevindurb/media-converter/internal/api"
-	"github.com/kevindurb/media-converter/internal/utils"
+	"github.com/Azilone/Camera-Workflow/internal/api"
+	"github.com/Azilone/Camera-Workflow/internal/utils"
 )
 
 func (c *Converter) convertFile(inputPath, fileType string) error {

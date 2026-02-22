@@ -22,6 +22,10 @@ go.work
 # Build directory
 build/
 dist/
+/apps/raycast/node_modules/
+/apps/raycast/.raycast/
+/apps/raycast/dist/
+/apps/raycast/raycast-env.d.ts
 
 # Binary
 media-converter

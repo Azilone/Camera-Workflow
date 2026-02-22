@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kevindurb/media-converter/internal/config"
+	"github.com/Azilone/Camera-Workflow/internal/config"
 )
 
 func TestAdaptiveControllerScalesDownAndUp(t *testing.T) {

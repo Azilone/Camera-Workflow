@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/kevindurb/media-converter/cmd"
+	"github.com/Azilone/Camera-Workflow/cmd"
 )
 
 func main() {

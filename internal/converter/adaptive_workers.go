@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kevindurb/media-converter/internal/config"
-	"github.com/kevindurb/media-converter/internal/logger"
+	"github.com/Azilone/Camera-Workflow/internal/config"
+	"github.com/Azilone/Camera-Workflow/internal/logger"
 )
 
 // ResourceSnapshot stores a single polling result for system utilisation.

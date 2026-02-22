@@ -4,6 +4,8 @@
 BINARY_NAME=media-converter
 MAIN_PATH=./main.go
 BUILD_DIR=./build
+RAYCAST_DIR=./apps/raycast
+RAYCAST_BIN_BUILD_SCRIPT=./scripts/build-raycast-binaries.sh
 
 # Go variables
 GOCMD=go
@@ -21,7 +23,7 @@ BUILD_TIME?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 # Linker flags
 LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
 
-.PHONY: all build clean test deps run help install cross-compile
+.PHONY: all build clean test deps run help install cross-compile raycast-binaries raycast-install raycast-dev raycast-lint
 
 ## Build commands
 
@@ -136,6 +138,20 @@ lint: fmt vet ## Run all linting tools
 dev: clean deps build-local ## Quick development build
 
 check: fmt vet test ## Run all checks
+
+## Raycast workflow
+
+raycast-binaries: ## Build embedded macOS binaries for Raycast
+	@$(RAYCAST_BIN_BUILD_SCRIPT) "$(VERSION)" "$(COMMIT)" "$(BUILD_TIME)"
+
+raycast-install: ## Install dependencies for Raycast extension
+	npm --prefix $(RAYCAST_DIR) install
+
+raycast-dev: raycast-binaries ## Run Raycast extension in development mode
+	npm --prefix $(RAYCAST_DIR) run dev
+
+raycast-lint: ## Lint Raycast extension
+	npm --prefix $(RAYCAST_DIR) run lint
 
 ## Help
 

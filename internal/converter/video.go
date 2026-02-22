@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kevindurb/media-converter/internal/utils"
+	"github.com/Azilone/Camera-Workflow/internal/utils"
 )
 
 // VideoAccelerationInfo stocke les informations sur l'accélération disponible

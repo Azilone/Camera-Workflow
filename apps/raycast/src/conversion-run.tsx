@@ -1,5 +1,5 @@
-import { Action, ActionPanel, Detail, Icon, LaunchType, Toast, open, showToast } from "@raycast/api";
-import { spawn } from "node:child_process";
+import { Action, ActionPanel, Detail, Icon, LaunchType, Toast, environment, open, showToast } from "@raycast/api";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { useEffect, useMemo, useState } from "react";
 
 export type ConversionPreset = "google-photos" | "high-quality" | "max-compression" | "custom";
@@ -30,8 +30,9 @@ export type LastRunRecord = {
 
 type Props = {
   values: ConversionFormValues;
-  mediaConverterPath?: string;
+  mediaConverterPath: string;
   runtimePath?: string;
+  allowPathFallback?: boolean;
   onCompleted?: (record: LastRunRecord) => Promise<void>;
 };
 
@@ -79,7 +80,7 @@ function markdownForState(lines: string[], status: "running" | "success" | "fail
   return `# Backup Preparation Run\n\n**Status:** ${statusLabel}\n\n## Live Process Output\n\n\`\`\`\n${lines.slice(-240).join("\n")}\n\`\`\`\n\n## Backup Report\n${summary.length ? summary.map((line) => `- ${line}`).join("\n") : "- Waiting for report metrics..."}`;
 }
 
-export default function ConversionRunView({ values, mediaConverterPath, runtimePath, onCompleted }: Props) {
+export default function ConversionRunView({ values, mediaConverterPath, runtimePath, allowPathFallback, onCompleted }: Props) {
   const [lines, setLines] = useState<string[]>([]);
   const [status, setStatus] = useState<"running" | "success" | "failure">("running");
   const [summary, setSummary] = useState<string[]>([]);
@@ -89,16 +90,16 @@ export default function ConversionRunView({ values, mediaConverterPath, runtimeP
 
   useEffect(() => {
     let canceled = false;
+    let finalized = false;
+    let usedPathFallback = false;
+    let activeChild: ChildProcessWithoutNullStreams | null = null;
     const capturedLines: string[] = [];
     let capturedLogPath: string | undefined;
-
-    const child = spawn(mediaConverterPath || "media-converter", args, {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        PATH: runtimePath || process.env.PATH,
-      },
-    });
+    const canFallbackToPath = Boolean(
+      allowPathFallback &&
+        environment.isDevelopment &&
+        process.env.CAMERA_WORKFLOW_ALLOW_PATH_FALLBACK === "1",
+    );
 
     const pushLine = (line: string) => {
       if (canceled) return;
@@ -114,56 +115,94 @@ export default function ConversionRunView({ values, mediaConverterPath, runtimeP
       }
     };
 
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-
-    child.stdout.on("data", (chunk: string) => {
-      chunk
-        .split(/\r?\n/)
-        .map((line) => line.trimEnd())
-        .filter(Boolean)
-        .forEach(pushLine);
-    });
-
-    child.stderr.on("data", (chunk: string) => {
-      chunk
-        .split(/\r?\n/)
-        .map((line) => line.trimEnd())
-        .filter(Boolean)
-        .forEach((line) => pushLine(`[stderr] ${line}`));
-    });
-
-    child.on("close", async (code) => {
-      if (canceled) return;
+    const finalize = async (success: boolean, failureMessage?: string) => {
+      if (canceled || finalized) return;
+      finalized = true;
 
       const finalSummary = parseSummary(capturedLines);
-      const success = code === 0;
+      if (!success && failureMessage) {
+        finalSummary.push(failureMessage);
+      }
+
       setStatus(success ? "success" : "failure");
       setSummary(finalSummary);
 
       await showToast({
         style: success ? Toast.Style.Success : Toast.Style.Failure,
         title: success ? "Backup preparation completed" : "Backup preparation failed",
-        message: success ? "Prepared library is ready" : `Exit code ${code ?? "unknown"}`,
+        message: success ? "Prepared library is ready" : failureMessage || "See log output for details",
       });
 
-      if (onCompleted) {
-        await onCompleted({
-          timestamp: new Date().toISOString(),
-          source: values.source,
-          destination: values.destination,
-          dryRun: values.dryRun,
-          args,
-          status: success ? "success" : "failure",
-          logPath: capturedLogPath,
-          summary: finalSummary,
-        });
-      }
-    });
+      if (!onCompleted) return;
+      await onCompleted({
+        timestamp: new Date().toISOString(),
+        source: values.source,
+        destination: values.destination,
+        dryRun: values.dryRun,
+        args,
+        status: success ? "success" : "failure",
+        logPath: capturedLogPath,
+        summary: finalSummary,
+      });
+    };
+
+    const spawnCommand = (command: string): ChildProcessWithoutNullStreams => {
+      const childProcess = spawn(command, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          PATH: runtimePath || process.env.PATH,
+        },
+      });
+      childProcess.stdout.setEncoding("utf8");
+      childProcess.stderr.setEncoding("utf8");
+
+      childProcess.stdout.on("data", (chunk: string) => {
+        chunk
+          .split(/\r?\n/)
+          .map((line) => line.trimEnd())
+          .filter(Boolean)
+          .forEach(pushLine);
+      });
+
+      childProcess.stderr.on("data", (chunk: string) => {
+        chunk
+          .split(/\r?\n/)
+          .map((line) => line.trimEnd())
+          .filter(Boolean)
+          .forEach((line) => pushLine(`[stderr] ${line}`));
+      });
+
+      childProcess.on("error", (error: NodeJS.ErrnoException) => {
+        if (!usedPathFallback && canFallbackToPath) {
+          usedPathFallback = true;
+          pushLine("[stderr] Embedded binary not available, retrying with PATH fallback.");
+          activeChild = spawnCommand("media-converter");
+          return;
+        }
+
+        void finalize(false, `Failed to launch converter: ${error.message}`);
+      });
+
+      childProcess.on("close", (code) => {
+        if (usedPathFallback && command !== "media-converter") {
+          return;
+        }
+        if (code === 0) {
+          void finalize(true);
+          return;
+        }
+        void finalize(false, `Exit code ${code ?? "unknown"}`);
+      });
+
+      return childProcess;
+    };
+
+    activeChild = spawnCommand(mediaConverterPath);
 
     return () => {
       canceled = true;
-      if (!child.killed) child.kill("SIGTERM");
+      if (activeChild && !activeChild.killed) activeChild.kill("SIGTERM");
     };
   }, []);
 
